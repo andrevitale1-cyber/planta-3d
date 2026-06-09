@@ -1,475 +1,74 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Planta 3D — Realismo e Mobiliário</title>
-<style>
-  html,body{margin:0;height:100%;background:#eceae2;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-  #app{position:fixed;inset:0}
-  
-  #hud{
-      position:absolute; left:14px; top:14px; 
-      background:rgba(255,255,255,.95); border:1px solid #d3d1c7;
-      border-radius:10px; padding:14px 18px; font-size:13px; color:#3d3d3a; 
-      width:340px; min-width:250px; min-height: 200px; line-height:1.6; z-index:10;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      resize: both; overflow: auto;
-  }
-  
-  #hud-header {
-      font-size:16px; margin:0 0 10px; font-weight:800; color:#1a1a1a;
-      cursor: move; padding-bottom: 5px; border-bottom: 2px solid #eee;
-  }
-  
-  #hud .row{display:flex;align-items:center;gap:10px;margin:5px 0; font-weight: 600;}
-  #hud .sw{width:28px;height:8px;border-radius:4px;flex:none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2)}
-  #hud .ic{width:12px;height:12px;border-radius:50%;flex:none;box-shadow: inset 0 1px 2px rgba(0,0,0,0.3)}
-  #hud .sq{width:12px;height:12px;flex:none;box-shadow: inset 0 1px 2px rgba(0,0,0,0.3)}
-  #hud small{color:#6b6a64; display:block; margin-top:12px; font-size: 11px; border-top: 1px solid #ddd; padding-top: 8px;}
-  
-  #btns{position:fixed;right:14px;top:14px;display:flex;gap:8px; z-index:10;}
-  #btns button{background:#fff;border:1px solid #d3d1c7;border-radius:8px;padding:8px 14px;
-       font-size:13px;font-weight:bold;color:#3d3d3a;cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s;}
-  #btns button:hover{background:#f3f2ec; transform: translateY(-1px);}
-</style>
+    <meta charset="UTF-8">
+    <title>Planta Logística 3D - Fábrica</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #eceae2; font-family: sans-serif; }
+        #app { position: fixed; inset: 0; }
+        #hud { position: absolute; left: 14px; top: 14px; background: rgba(255,255,255,.9); padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); pointer-events: none; }
+    </style>
 </head>
 <body>
-<div id="app"></div>
+    <div id="app"></div>
+    <div id="hud"><h1>Planta Logística 3D</h1><p>Docas abertas e fluxo operacional.</p></div>
 
-<div id="hud">
-  <h1 id="hud-header" title="Clique e arraste para mover">≡ Planta 3D (Mobiliário 2.0)</h1>
-  <div class="row"><span class="sw" style="background:#d32f2f;"></span> Fluxo Macro em "U"</div>
-  <div class="row"><span class="sw" style="background:#1976d2"></span> Proc. RTD / <span class="sw" style="background:#388e3c"></span> Proc. Cápsulas</div>
-  <hr style="border:0; border-top:1px solid #eee; margin: 8px 0;">
-  <div class="row"><span class="sq" style="background:#555;"></span> QGBT (Quadro Geral)</div>
-  <div class="row"><span class="sq" style="background:#cc0000;"></span> Tomada Ind. (M1 a M7)</div>
-  <div class="row"><span class="ic" style="background:#000000;"></span> Tomada Uso Geral (TUG)</div>
-  <div class="row"><span class="ic" style="background:#2196f3;"></span> Ponto de Água Potável</div>
-  <div class="row"><span class="sq" style="background:#90caf9; border: 1px solid #1976d2;"></span> Ralo Sifonado</div>
-  <small>Mesas, armários, prateleiras e máquinas agora modelados com detalhes físicos. Arraste para mover, puxe o canto para redimensionar.</small>
-</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeceae2);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('app').appendChild(renderer.domElement);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(20, 30, 20);
 
-<div id="btns">
-  <button id="rotate">Girar auto: ON</button>
-  <button id="top">Vista de Topo</button>
-  <button id="iso">Vista 3D</button>
-</div>
+        // Luzes
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const light = new THREE.DirectionalLight(0xffffff, 0.5);
+        light.position.set(10, 20, 10);
+        scene.add(light);
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<script>
-const hud = document.getElementById('hud');
-const header = document.getElementById('hud-header');
-let isDragging = false, startX, startY, startLeft, startTop;
+        // Paredes com Vão de Doca
+        const wallMat = new THREE.MeshStandardMaterial({color: 0x888888});
+        function addWall(x, z, w, d, h) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+            wall.position.set(x, h/2, z);
+            scene.add(wall);
+        }
 
-header.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    startX = e.clientX; startY = e.clientY;
-    startLeft = hud.offsetLeft; startTop = hud.offsetTop;
-    document.body.style.userSelect = 'none';
-});
-document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    hud.style.left = `${startLeft + (e.clientX - startX)}px`;
-    hud.style.top = `${startTop + (e.clientY - startY)}px`;
-});
-document.addEventListener('mouseup', () => {
-    isDragging = false;
-    document.body.style.userSelect = '';
-});
+        // Paredes Perimetrais (Layout simplificado das paredes)
+        addWall(0, -15, 40, 0.5, 3); // Fundo
+        addWall(0, 15, 10, 0.5, 3);  // Frontal (fechado)
+        addWall(-15, 15, 10, 0.5, 3); // Doca Esq (vão central)
+        addWall(15, 15, 10, 0.5, 3);  // Doca Dir (vão central)
+        addWall(-20, 0, 0.5, 30, 3);  // Lateral Esq
+        addWall(20, 0, 0.5, 30, 3);   // Lateral Dir
 
-try {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xeceae2);
-  const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 2000);
-  const renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(innerWidth, innerHeight); 
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  document.getElementById('app').appendChild(renderer.domElement);
+        // Caminhões (Corrigidos: encostados de ré)
+        function createTruck(x, z) {
+            const g = new THREE.Group();
+            const trailer = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 4), new THREE.MeshStandardMaterial({color: 0xffffff}));
+            trailer.position.set(0, 1, 1);
+            g.add(trailer);
+            const cab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshStandardMaterial({color: 0x2e86c1}));
+            cab.position.set(0, 0.75, -2);
+            g.add(cab);
+            g.position.set(x, 0, z);
+            scene.add(g);
+        }
+        createTruck(-15, 18); // Doca Recebimento
+        createTruck(15, 18);  // Doca Expedição
 
-  const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.05; controls.maxPolarAngle = Math.PI/2 - 0.05;
-
-  function isoView() { camera.position.set(0, 48, 52); controls.target.set(0, 0, 0); }
-  function topView() { camera.position.set(0, 62, 0.1); controls.target.set(0, 0, 0); }
-  isoView();
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
-  dirLight.position.set(20, 50, 20); dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
-  dirLight.shadow.camera.left = -30; dirLight.shadow.camera.right = 30;
-  dirLight.shadow.camera.top = 30; dirLight.shadow.camera.bottom = -30;
-  scene.add(dirLight);
-
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(40.4, 0.4, 30.4), new THREE.MeshStandardMaterial({color: 0xcccccc}));
-  floor.position.set(0, -0.2, 0); floor.receiveShadow = true; scene.add(floor);
-
-  // ZONAS COLORIDAS
-  function pad(x1, z1, x2, z2, hexColor) {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x2-x1, z2-z1), new THREE.MeshStandardMaterial({color: hexColor, roughness: 0.9}));
-      mesh.rotation.x = -Math.PI / 2; mesh.position.set((x1+x2)/2, 0.02, (z1+z2)/2);
-      mesh.receiveShadow = true; scene.add(mesh);
-  }
-
-  pad(-20, -15, -6,  -3, 0xc2d6e6); pad( -6, -15, -2,  -3, 0xfce8cc); pad( -2, -15, 10,  -3, 0xcfe6d3); 
-  pad( 10, -15, 14,  -3, 0xd0e6e4); pad( 14, -15, 20,  -9, 0xe0e0e0); pad( 14,  -9, 20,  -3, 0xd5d5d5); 
-  pad(-19,  -1, -1,   8, 0xe3dfd5); pad(  1,  -1, 19,   8, 0xe3dfd5); pad(-20,  10, -13, 15, 0xf0d5cd); 
-  pad(-13,  10, -3,  15, 0xd9d6eb); pad( -3,  10,  4,  15, 0xcfe6d3); pad(  4,  10, 13,  15, 0xe8d5e1); 
-  pad( 13,  10, 20,  15, 0xf0d5cd); pad(-20,  -3, 20,  10, 0xfaf9f5); 
-
-  // PAREDES COM VÃOS (PORTAS)
-  const wallMat = new THREE.MeshStandardMaterial({color: 0x8a8a8a, roughness: 0.8});
-  function w(x1, z1, x2, z2) {
-      const len = Math.hypot(x2-x1, z2-z1);
-      if (len < 0.1) return;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(len + 0.3, 3.5, 0.3), wallMat);
-      m.position.set((x1+x2)/2, 1.75, (z1+z2)/2); m.rotation.y = -Math.atan2(z2-z1, x2-x1); 
-      m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  }
-
-  function hWall(z, x1, x2, gaps=[]) {
-      let segs = [[x1, x2]];
-      gaps.forEach(g => {
-          let nsegs = [];
-          segs.forEach(s => {
-              if(g[1] <= s[0] || g[0] >= s[1]) nsegs.push(s);
-              else { if(g[0] > s[0]) nsegs.push([s[0], g[0]]); if(g[1] < s[1]) nsegs.push([g[1], s[1]]); }
-          }); segs = nsegs;
-      }); segs.forEach(s => w(s[0], z, s[1], z));
-  }
-  function vWall(x, z1, z2, gaps=[]) {
-      let segs = [[z1, z2]];
-      gaps.forEach(g => {
-          let nsegs = [];
-          segs.forEach(s => {
-              if(g[1] <= s[0] || g[0] >= s[1]) nsegs.push(s);
-              else { if(g[0] > s[0]) nsegs.push([s[0], g[0]]); if(g[1] < s[1]) nsegs.push([g[1], s[1]]); }
-          }); segs = nsegs;
-      }); segs.forEach(s => w(x, s[0], x, s[1]));
-  }
-
-  // --- ALTERAÇÃO AQUI: Adicionado os 'gaps' na hWall frontal (Z=15) para abrir as docas ---
-  hWall(-15, -20, 20); 
-  hWall(15, -20, 20, [[-18.5, -14.5], [14.5, 18.5]]); // Buracos das docas (-16.5 e 16.5)
-  vWall(-20, -15, 15); vWall(20, -15, 15);
-  // ----------------------------------------------------------------------------------------
-
-  hWall(10, -20, 20, [[-17.5,-15.5], [-8.5,-7.5], [15.5,17.5]]); 
-  hWall(8, -19, -1, [[-15,-13]]); hWall(8, 1, 19, [[9,11]]); 
-  hWall(-1, -19, -1, [[-11,-9]]); hWall(-1, 1, 19, [[15,17]]); 
-  hWall(-3, -20, 20, [[-15,-13], [-9.5,-7.5], [3,5], [11,13]]); 
-  hWall(-9, 14, 20, [[15,16]]); 
-  vWall(-13, 10, 15); vWall(-3, 10, 15); vWall(4, 10, 15); vWall(13, 10, 15); 
-  vWall(-19, -1, 8); vWall(-1, -1, 8); vWall(1, -1, 8); vWall(19, -1, 8); 
-  vWall(-6, -15, -3, [[-11,-9]]); vWall(-2, -15, -3, [[-11,-9]]); 
-  vWall(10, -15, -3, [[-12,-10]]); vWall(14, -15, -3, [[-10,-8]]); 
-
-  // ==========================================
-  // MATERIAIS PARA O MOBILIÁRIO
-  // ==========================================
-  const matWood = new THREE.MeshStandardMaterial({color: 0x8b5a2b, roughness: 0.8});
-  const matDarkWood = new THREE.MeshStandardMaterial({color: 0x5c4033, roughness: 0.8});
-  const matMetal = new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.5});
-  const matSteel = new THREE.MeshStandardMaterial({color: 0xb0c4de, metalness: 0.6, roughness: 0.3});
-  const matWhite = new THREE.MeshStandardMaterial({color: 0xf5f5f5, roughness: 0.9});
-  const matBlack = new THREE.MeshStandardMaterial({color: 0x111111});
-  const matMach1 = new THREE.MeshStandardMaterial({color: 0x8f9b9f, roughness: 0.6});
-  const matMach2 = new THREE.MeshStandardMaterial({color: 0x7ebaa3, roughness: 0.6});
-
-  // Função auxiliar para criar meshes
-  function createMesh(geo, mat) {
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      return mesh;
-  }
-
-  // ==========================================
-  // CONSTRUTORES DE MOBILIÁRIO E MÁQUINAS
-  // ==========================================
-
-  // 1. Estação de Trabalho (Escritório)
-  function createOfficeDesk(x, z) {
-      const group = new THREE.Group();
-      const top = createMesh(new THREE.BoxGeometry(1.8, 0.05, 0.8), matWood);
-      top.position.y = 0.75; group.add(top);
-      // Pernas
-      const legGeo = new THREE.BoxGeometry(0.05, 0.75, 0.05);
-      [[-0.8, -0.3], [0.8, -0.3], [-0.8, 0.3], [0.8, 0.3]].forEach(pos => {
-          const leg = createMesh(legGeo, matMetal); leg.position.set(pos[0], 0.375, pos[1]); group.add(leg);
-      });
-      // Monitor
-      const monitor = createMesh(new THREE.BoxGeometry(0.5, 0.3, 0.05), matBlack);
-      monitor.position.set(0, 0.95, -0.2); group.add(monitor);
-      // Cadeira
-      const chairSeat = createMesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), matBlack);
-      chairSeat.position.set(0, 0.45, 0.3); group.add(chairSeat);
-      const chairBack = createMesh(new THREE.BoxGeometry(0.4, 0.4, 0.05), matBlack);
-      chairBack.position.set(0, 0.65, 0.475); group.add(chairBack);
-      
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 2. Mesa de Reunião Central
-  function createMeetingTable(x, z) {
-      const group = new THREE.Group();
-      const top = createMesh(new THREE.BoxGeometry(2.5, 0.1, 1.2), matDarkWood);
-      top.position.y = 0.75; group.add(top);
-      const leg = createMesh(new THREE.BoxGeometry(1.5, 0.75, 0.4), matBlack);
-      leg.position.y = 0.375; group.add(leg);
-      // Cadeiras (3 de cada lado)
-      for(let i=-1; i<=1; i++) {
-          const c1 = createMesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), matBlack);
-          c1.position.set(i*0.8, 0.2, 0.8); group.add(c1);
-          const c2 = createMesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), matBlack);
-          c2.position.set(i*0.8, 0.2, -0.8); group.add(c2);
-      }
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 3. Mesas do Refeitório
-  function createRefectoryTable(x, z) {
-      const group = new THREE.Group();
-      const top = createMesh(new THREE.BoxGeometry(4, 0.1, 1), matWhite);
-      top.position.y = 0.8; group.add(top);
-      const bench1 = createMesh(new THREE.BoxGeometry(4, 0.1, 0.4), matWood);
-      bench1.position.set(0, 0.45, 0.8); group.add(bench1);
-      const bench2 = createMesh(new THREE.BoxGeometry(4, 0.1, 0.4), matWood);
-      bench2.position.set(0, 0.45, -0.8); group.add(bench2);
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 4. Armários (Lockers) Vestiário
-  function createLockers(x, z, w) {
-      const group = new THREE.Group();
-      const count = Math.floor(w / 0.5);
-      for(let i=0; i<count; i++) {
-          const locker = createMesh(new THREE.BoxGeometry(0.48, 2.2, 0.6), matSteel);
-          locker.position.set(-w/2 + 0.25 + i*0.5, 1.1, 0); group.add(locker);
-      }
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 5. Tanques Industriais
-  function createTank(x, z, r, h) {
-      const group = new THREE.Group();
-      const tank = createMesh(new THREE.CylinderGeometry(r, r, h, 16), matSteel);
-      tank.position.y = h/2 + 0.4; group.add(tank);
-      // Pés
-      for(let i=0; i<4; i++) {
-          const angle = (Math.PI / 2) * i;
-          const leg = createMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 8), matMetal);
-          leg.position.set(Math.cos(angle)*(r-0.2), 0.2, Math.sin(angle)*(r-0.2)); group.add(leg);
-      }
-      const dome = createMesh(new THREE.SphereGeometry(r, 16, 8, 0, Math.PI*2, 0, Math.PI/2), matSteel);
-      dome.position.y = h + 0.4; group.add(dome);
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 6. Máquina com Funil (Moagem/Dosagem)
-  function createMachine(x, z, w, d, h, mat) {
-      const group = new THREE.Group();
-      const base = createMesh(new THREE.BoxGeometry(w, h, d), mat);
-      base.position.y = h/2; group.add(base);
-      const hopper = createMesh(new THREE.ConeGeometry(w*0.4, 1.0, 16), matSteel);
-      hopper.rotation.x = Math.PI; // Funil para baixo
-      hopper.position.y = h + 0.5; group.add(hopper);
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 7. Linha de Envase (Esteira)
-  function createFillingLine(x, z, w, d, h) {
-      const group = new THREE.Group();
-      const base = createMesh(new THREE.BoxGeometry(w*0.8, h*0.8, d), matMach1);
-      base.position.y = (h*0.8)/2; group.add(base);
-      const conveyor = createMesh(new THREE.BoxGeometry(w, 0.2, d*0.4), matBlack);
-      conveyor.position.y = h*0.8; group.add(conveyor);
-      const top = createMesh(new THREE.BoxGeometry(w*0.5, 0.5, d*0.8), matSteel);
-      top.position.y = h + 0.25; group.add(top);
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 8. Racks de Porta-Paletes (Estrutura realista)
-  function createRacks(x, z, w, d) {
-      const group = new THREE.Group();
-      const matFrame = new THREE.MeshStandardMaterial({color: 0x1a5276}); // Azul Escuro
-      const matShelf = new THREE.MeshStandardMaterial({color: 0xd35400}); // Laranja
-      const matBox = new THREE.MeshStandardMaterial({color: 0xc2a884}); // Papelão
-      
-      // Cria 3 fileiras para simular os corredores
-      const rowD = 1.0; const spacing = (d - (3 * rowD)) / 2;
-      for(let r=0; r<3; r++) {
-          const zPos = -d/2 + rowD/2 + r*(rowD + spacing);
-          // Colunas
-          for(let i=0; i<=w; i+=2) {
-              const post = createMesh(new THREE.BoxGeometry(0.1, 3.5, rowD), matFrame);
-              post.position.set(-w/2 + i, 1.75, zPos); group.add(post);
-          }
-          // Prateleiras e Caixas
-          for(let l=1; l<=3; l++) {
-              const shelf = createMesh(new THREE.BoxGeometry(w, 0.1, rowD), matShelf);
-              shelf.position.set(0, l*1.1, zPos); group.add(shelf);
-              const box = createMesh(new THREE.BoxGeometry(w*0.8, 0.8, rowD*0.8), matBox);
-              box.position.set(0, l*1.1 + 0.45, zPos); group.add(box);
-          }
-      }
-      group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // 9. Caminhão
-  function createTruck(x, z, rotY) {
-      const group = new THREE.Group();
-      const trailer = createMesh(new THREE.BoxGeometry(2.5, 2.5, 4.5), matWhite);
-      trailer.position.set(0, 1.5, -0.8); group.add(trailer);
-      const cab = createMesh(new THREE.BoxGeometry(2.0, 2.0, 1.5), new THREE.MeshStandardMaterial({color: 0x2e86c1}));
-      cab.position.set(0, 1.25, 2.2); group.add(cab);
-      // Rodas
-      const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16); wGeo.rotateZ(Math.PI/2);
-      [[-1.3, -2.5], [1.3, -2.5], [-1.3, 0], [1.3, 0], [-1.3, 2.2], [1.3, 2.2]].forEach(p => {
-          const wheel = createMesh(wGeo, matBlack); wheel.position.set(p[0], 0.4, p[1]); group.add(wheel);
-      });
-      group.rotation.y = rotY; group.position.set(x, 0, z); scene.add(group);
-  }
-
-  // ==========================================
-  // INSERINDO ELEMENTOS NA CENA
-  // ==========================================
-
-  // Produção Úmida (RTD)
-  createMachine(-17, -12, 2.0, 2.0, 1.8, matMach1); // Moagem
-  createTank(-13, -12.5, 1.5, 3.0); // Aquecimento 1
-  createTank(-13, -8.5, 1.5, 3.0);  // Aquecimento 2
-  createFillingLine(-8.5, -10.5, 4.5, 2.5, 1.5); // Envase RTD
-
-  // Produção Seca (Cápsulas)
-  createMachine(0.5, -12, 1.5, 1.5, 1.8, matMach1); // Verificação
-  createMachine(5, -11, 2.5, 2.5, 2.0, matMach2); // Dosagem
-  const seladora = createMesh(new THREE.BoxGeometry(3.0, 1.5, 2.0), matMach2); // Seladora
-  seladora.position.set(5, 0.75, -6.5); scene.add(seladora);
-
-  // Apoio, Laboratório e Oficina
-  const bancadaLab = createMesh(new THREE.BoxGeometry(1.8, 1.2, 5), matWhite);
-  bancadaLab.position.set(-4, 0.6, -9); scene.add(bancadaLab);
-  
-  const bancadaOficina = createMesh(new THREE.BoxGeometry(3.5, 1.0, 1.2), matWood);
-  bancadaOficina.position.set(17, 0.5, -13); scene.add(bancadaOficina);
-
-  // Estoques e Câmaras Frias
-  createRacks(-10, 3.5, 8, 5); // Estoque M.P.
-  createRacks(10, 3.5, 8, 5);  // Estoque P.A.
-  const prateleiraFria = createMesh(new THREE.BoxGeometry(1.5, 3.5, 6), matSteel);
-  prateleiraFria.position.set(12, 1.75, -9); scene.add(prateleiraFria);
-
-  // --- ALTERAÇÃO AQUI: Caminhões girados (rotação 0 em vez de Math.PI) para encostar a caçamba ---
-  createTruck(-16.5, 12.5, 0); // Caminhão Doca Recebimento (de ré para carregamento)
-  createTruck(16.5, 12.5, 0);  // Caminhão Doca Expedição (de ré para carregamento)
-  // ------------------------------------------------------------------------------------------------
-
-  // Administrativo / Vestiários
-  createOfficeDesk(-11.5, 11.5);
-  createOfficeDesk(-11.5, 13.5);
-  createMeetingTable(-6, 12.5);
-  createRefectoryTable(0.5, 11.5);
-  createRefectoryTable(0.5, 13.5);
-  createLockers(6, 12.5, 3.5);
-  createLockers(11, 12.5, 3.5);
-  const bancoVest = createMesh(new THREE.BoxGeometry(1.5, 0.5, 3.0), matWood);
-  bancoVest.position.set(8.5, 0.25, 12.5); scene.add(bancoVest);
-
-  // INFRAESTRUTURA (PLANTA I)
-  const qgbt = createMesh(new THREE.BoxGeometry(1.5, 2.5, 0.5), matMetal);
-  qgbt.position.set(-19, 1.25, 14); scene.add(qgbt);
-  const reservatorio = createMesh(new THREE.CylinderGeometry(2, 2, 4, 16), new THREE.MeshStandardMaterial({color: 0x4299e1}));
-  reservatorio.position.set(-22, 2, -10); scene.add(reservatorio);
-  
-  function tomadaInd(x, z) { 
-      const t = createMesh(new THREE.BoxGeometry(0.6, 1.0, 0.6), new THREE.MeshStandardMaterial({color: 0xcc0000}));
-      t.position.set(x, 0.8, z); scene.add(t);
-  }
-  tomadaInd(-17, -14); tomadaInd(-15, -12); tomadaInd(-15, -8); tomadaInd(-10, -13); 
-  tomadaInd(2, -12); tomadaInd(3, -11); tomadaInd(7, -6.5);
-
-  function tug(x, z) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), matBlack);
-      m.position.set(x, 0.8, z); scene.add(m);
-  }
-  tug(-12, 14.8); tug(-8, 14.8); tug(-4, 14.8); tug(-2, 14.8); tug(2, 14.8); tug(16, -14.8); tug(18, -14.8);
-
-  function ptAgua(x, z) { 
-      const cyl = createMesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 8), new THREE.MeshStandardMaterial({color: 0x2196f3}));
-      cyl.position.set(x, 0.6, z); scene.add(cyl);
-  }
-  function ralo(x, z) {
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshStandardMaterial({color: 0x90caf9}));
-      mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, 0.03, z); scene.add(mesh);
-  }
-  ptAgua(-18, -14); ptAgua(-11, -12); ptAgua(-11, -8); ralo(-14, -10); ralo(-8, -8);
-  ptAgua(-1, 14.5); ptAgua(5, 14.5); ptAgua(10, 14.5); ptAgua(12, 14.5); ralo(-2, 13); ralo(7, 13); ralo(11, 13);
-
-  // ==========================================
-  // TUBULAÇÕES / DIAGRAMA DE ESPAGUETE
-  // ==========================================
-  function pipe(pts, col, thick=0.15, showArrows=true) {
-      const mat = new THREE.MeshStandardMaterial({color: col, emissive: col, emissiveIntensity: 0.2});
-      const P = pts.map(p => new THREE.Vector3(p[0], 0.8, p[1])); // Altura ajustada
-      for(let i=0; i<P.length-1; i++) {
-          const d = new THREE.Vector3().subVectors(P[i+1], P[i]), len = d.length();
-          if(len === 0) continue;
-          const cyl = new THREE.Mesh(new THREE.CylinderGeometry(thick, thick, len, 12), mat);
-          cyl.position.copy(P[i]).addScaledVector(d, 0.5);
-          cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.clone().normalize()); scene.add(cyl);
-          const j = new THREE.Mesh(new THREE.SphereGeometry(thick, 12, 12), mat); j.position.copy(P[i]); scene.add(j);
-      }
-      if(showArrows && P.length > 1) {
-          const a = P[P.length-2], b = P[P.length-1], d = new THREE.Vector3().subVectors(b,a).normalize();
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(thick*2.5, thick*4, 16), mat);
-          cone.position.copy(b).addScaledVector(d, thick); cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d); scene.add(cone);
-      }
-  }
-
-  // Fluxo em U (Vermelho)
-  pipe([[-16.5,11], [-16.5,9], [-14,9], [-14,3.5], [-10,3.5], [-10,-1.5], [-14,-1.5], [-14,-5], [-8.5,-5], [-8.5,-1.5], [4,-1.5], [4,-6.5], [8.5,-6.5], [8.5,-11], [12,-11], [12,-1.5], [16,-1.5], [16,3.5], [10,3.5], [10,9], [16.5,9], [16.5,11]], 0xd32f2f, 0.22); 
-  // Processos e Lab
-  pipe([[-14,-5], [-17,-10], [-13,-12.5], [-13,-8.5], [-8.5,-8.5]], 0x1976d2, 0.12); 
-  pipe([[4,-6.5], [0.5,-10.5], [5,-10.5], [5,-7.5]], 0x388e3c, 0.12); 
-
-  // ==========================================
-  // TEXTOS E LEGENDAS
-  // ==========================================
-  function label(text, x, z, scale=1, hexColor='#000000') {
-      const lines = text.split('\n');
-      const c = document.createElement('canvas'); const ctx = c.getContext('2d');
-      c.width = 512; c.height = 128;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'; ctx.beginPath(); ctx.roundRect(16, 16, 480, 96, 16); ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.stroke();
-      ctx.fillStyle = hexColor; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      lines.forEach((ln,i,arr) => { ctx.fillText(ln, 256, 64 + (i - (arr.length-1)/2)*34); });
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(c), depthTest: false}));
-      sp.scale.set(10*scale, 2.5*scale, 1); sp.position.set(x, 6.0, z); scene.add(sp);
-  }
-
-  label('PRODUÇÃO ÚMIDA', -13, -13, 0.8); label('PRODUÇÃO SECA', 4, -13, 0.8); label('CÂM. FRIA', 12, -6, 0.65);
-  label('ESTOQUE M.P.', -14.5, 3.5, 0.8, '#333'); label('ESTOQUE P.A.', 14.5, 3.5, 0.8, '#333');
-  label('RESERVATÓRIO', -22, -10, 0.6, '#1976d2'); label('QGBT', -19, 14, 0.5, '#d32f2f');
-  label('DOCA DE\nRECEBIMENTO', -16.5, 12.5, 0.65); label('RECEPÇÃO / ESCRITÓRIOS\nE VENDAS', -8, 14.5, 0.75); 
-  label('REFEITÓRIO', 0.5, 14.5, 0.65); label('VESTIÁRIOS E\nBANHEIROS', 8.5, 14.5, 0.65); label('DOCA DE\nEXPEDIÇÃO', 16.5, 12.5, 0.65);
-
-  let autoRotate = true;
-  const btnRot = document.getElementById('rotate');
-  btnRot.onclick = () => { autoRotate = !autoRotate; btnRot.textContent = 'Girar auto: '+(autoRotate?'ON':'OFF'); };
-  document.getElementById('top').onclick = topView;
-  document.getElementById('iso').onclick = isoView;
-  window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-
-  (function loop() {
-      requestAnimationFrame(loop);
-      if(autoRotate) { const t = Date.now()*.0001; const r = Math.hypot(camera.position.x, camera.position.z); camera.position.x = Math.sin(t)*r; camera.position.z = Math.cos(t)*r; }
-      controls.update(); renderer.render(scene, camera);
-  })();
-} catch(e) { alert("Erro ao carregar 3D: " + e); }
-</script>
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
 </body>
 </html>
